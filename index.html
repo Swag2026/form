@@ -144,6 +144,19 @@
   .login-err{color:#c0392b;font-size:13px;min-height:18px;margin-top:10px;font-weight:600}
   #logoutBtn{border-color:#c2453a;color:#c2453a}
 
+  /* ===== Gold Ticker ===== */
+  .ticker{max-width:520px;margin:0 auto 8px;background:transparent;
+          border-radius:10px;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;
+          gap:8px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+  .ticker-item{display:flex;flex-direction:column;align-items:center;gap:1px}
+  .ticker-label{font-size:10px;color:#3a6b4a;font-weight:700;letter-spacing:.5px}
+  .ticker-val{font-size:15px;font-weight:800;color:#8f7438;letter-spacing:.3px;font-family:'Tajawal',system-ui}
+  .ticker-unit{font-size:9px;color:#5a7a5a;font-weight:600}
+  .ticker-sep{width:1px;height:32px;background:rgba(0,0,0,.12);flex-shrink:0}
+  .ticker-dot{width:7px;height:7px;border-radius:50%;background:#b8985a;animation:blink 2s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  .ticker-time{font-size:9px;color:#5a7a5a;text-align:center}
+  @media print{.ticker{display:none!important}}
   @media print{
     *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
     body{background:#fff;padding:0}
@@ -155,6 +168,30 @@
 <body>
 
   <div id="app">
+  <div class="ticker" id="ticker">
+    <div class="ticker-item">
+      <span class="ticker-label">عيار 24</span>
+      <span class="ticker-val" id="g24">—</span>
+      <span class="ticker-unit">ريال/جم</span>
+    </div>
+    <div class="ticker-sep"></div>
+    <div class="ticker-item">
+      <span class="ticker-label">عيار 21</span>
+      <span class="ticker-val" id="g21">—</span>
+      <span class="ticker-unit">ريال/جم</span>
+    </div>
+    <div class="ticker-sep"></div>
+    <div class="ticker-item">
+      <span class="ticker-label">عيار 18</span>
+      <span class="ticker-val" id="g18">—</span>
+      <span class="ticker-unit">ريال/جم</span>
+    </div>
+    <div class="ticker-sep"></div>
+    <div class="ticker-item">
+      <span class="ticker-dot"></span>
+      <span class="ticker-time" id="tickerTime">جاري التحميل</span>
+    </div>
+  </div>
   <div class="sheet">
     <!-- Header -->
     <div class="hdr">
@@ -411,6 +448,98 @@ async function tryLogin(){
   document.getElementById('loginUser').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass').focus();});
   document.getElementById('logoutBtn').addEventListener('click',()=>{localStorage.removeItem('swag_auth');location.reload();});
   if(localStorage.getItem('swag_auth')==='1'){showApp();}else{showLogin();}
+})();
+
+
+/* ===== Live Gold Price Ticker (goldapi-l78xsm80oefo0-io) ===== */
+(function(){
+  const API_KEY  = "goldapi-l78xsm80oefo0-io";
+  const API_SAR  = "https://www.goldapi.io/api/XAU/SAR";
+  const CACHE_KEY= "swag_gold_cache";
+  const CACHE_TTL= 60*1000; // 1 min cache (same as 5s interval x12)
+
+  // swagFee from get_gold_fees.php — agar available ho to use karo, warna 0
+  let fee24=0, fee21=0, fee18=0;
+  (async function loadFees(){
+    try{
+      const fc=new AbortController();const ft=setTimeout(()=>fc.abort(),3000);
+      const r=await fetch("get_gold_fees.php?t="+Date.now(),{signal:fc.signal});
+      clearTimeout(ft);
+      if(r.ok){const d=await r.json();
+        fee24=Number(d.gold24)||0; fee21=Number(d.gold21)||0; fee18=Number(d.gold18)||0;}
+    }catch(e){/* fees server nahi mila — 0 use karo */}
+  })();
+
+  function fmt(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+  function setTicker(p24,p21,p18){
+    const now=new Date();
+    const t=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    const el24=document.getElementById('g24');
+    const el21=document.getElementById('g21');
+    const el18=document.getElementById('g18');
+    const elT =document.getElementById('tickerTime');
+    if(el24) el24.textContent=fmt(p24);
+    if(el21) el21.textContent=fmt(p21);
+    if(el18) el18.textContent=fmt(p18);
+    if(elT)  elT.textContent=t+' آخر تحديث';
+    // flash colour on change
+    [['g24',p24],['g21',p21],['g18',p18]].forEach(([id,val])=>{
+      const el=document.getElementById(id); if(!el) return;
+      const prev=parseFloat(el.dataset.prev||'0');
+      el.style.color = prev&&val>prev ? '#4ecb71' : prev&&val<prev ? '#e05252' : '#c9a961';
+      el.dataset.prev=val;
+      if(prev&&val!==prev){setTimeout(()=>{if(el)el.style.color='#c9a961';},1500);}
+    });
+    try{localStorage.setItem(CACHE_KEY,JSON.stringify({p24,p21,p18,ts:Date.now()}));}catch(e){}
+  }
+
+  function loadCache(){
+    try{
+      const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
+      if(c&&Date.now()-c.ts<CACHE_TTL){setTicker(c.p24,c.p21,c.p18);return true;}
+    }catch(e){}
+    return false;
+  }
+
+  async function fetchPrice(){
+    try{
+      const r=await fetch(API_SAR,{
+        method:'GET',
+        headers:{'x-access-token':API_KEY,'Content-Type':'application/json'},
+        signal:(function(){const c=new AbortController();setTimeout(()=>c.abort(),6000);return c.signal;})()
+      });
+      if(!r.ok) throw new Error('api error');
+      const d=await r.json();
+      const p24=Number(d.price_gram_24k)||0;
+      const p21=Number(d.price_gram_21k)||0;
+      const p18=Number(d.price_gram_18k)||0;
+      if(p24){
+        setTicker(p24+fee24, p21+fee21, p18+fee18);
+        return true;
+      }
+    }catch(e){console.warn('gold ticker:',e.message);}
+    return false;
+  }
+
+  async function refresh(force){
+    if(!force && loadCache()) return;
+    const ok=await fetchPrice();
+    if(!ok){
+      const el=document.getElementById('tickerTime');
+      if(el) el.textContent='تعذر التحديث';
+    }
+  }
+
+  // Hook into showApp so ticker loads right after login
+  const _orig=window.showApp;
+  window.showApp=function(){if(_orig)_orig();refresh(true);};
+
+  // If already logged in
+  if(document.getElementById('app')&&document.getElementById('app').style.display!=='none') refresh(true);
+
+  // Poll every 5 seconds (same as gold monitor)
+  setInterval(()=>refresh(true), 5000);
 })();
 
 </script>

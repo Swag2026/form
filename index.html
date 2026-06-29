@@ -335,7 +335,7 @@ function delRow(r){
   const tb=r.parentNode;
   if(tb.children.length>1) r.remove();
   else r.querySelectorAll('input,textarea').forEach(i=>i.value='');
-  ensureTail(tb); persist();
+  ensureTail(tb); persist(); if(typeof updateTotals==='function')updateTotals();
 }
 [$('orderRows'),$('buyRows')].forEach(tb=>{
   tb.addEventListener('click',e=>{const b=e.target.closest('.del'); if(b) delRow(b.closest('tr'));});
@@ -574,14 +574,8 @@ updateTotals();
 
 <script>
 (function(){
-  var U="swag", PH="650f8aa2b6341f25b3f8916e6ec1d85777f22b8335e8ee2b0fb7a4cfdd8b82a9";
-  async function sha(t){
-    if(window.crypto&&crypto.subtle){
-      var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));
-      return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
-    }
-    var n=0;for(var i=0;i<t.length;i++)n=(n*31+t.charCodeAt(i))>>>0;return'fb'+n;
-  }
+  var U="swag", PH="swag2026";
+  async function sha(t){ return t; }
   function showApp(){
     var o=document.getElementById('loginOverlay');if(o)o.style.display='none';
     var a=document.getElementById('app');if(a)a.style.display='block';

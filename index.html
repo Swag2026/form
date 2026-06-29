@@ -156,6 +156,14 @@
   .ticker-dot{width:7px;height:7px;border-radius:50%;background:#b8985a;animation:blink 2s infinite}
   @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
   .ticker-time{font-size:9px;color:#5a7a5a;text-align:center}
+  /* ===== Totals row ===== */
+  .tot-val{color:#1a5c35;font-weight:800;font-size:10px;
+            overflow:hidden;white-space:nowrap;max-width:0;width:100%;
+            text-overflow:ellipsis;display:table-cell}
+  tfoot td{padding:3px 2px!important;border:1px solid var(--line)}
+  .sar-sym{display:inline-flex;align-items:center;justify-content:center}
+  .sar-icon{width:14px;height:12px;color:var(--gold-deep);display:inline-block;vertical-align:middle}
+  thead.order .sar-icon, thead.buy .sar-icon{color:var(--green-deep)}
   @media print{.ticker{display:none!important}}
   @media print{
     *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
@@ -216,16 +224,18 @@
     <!-- الطلب -->
     <table>
       <colgroup><col style="width:17%"><col style="width:17%"><col style="width:49%"><col style="width:17%"></colgroup>
-      <thead class="order"><tr><th>الوزن</th><th>السعر</th><th>البيان</th><th>العمولة</th></tr></thead>
+      <thead class="order"><tr><th>الوزن</th><th>السعر <img src="https://www.sama.gov.sa/ar-sa/Currency/Documents/Saudi_Riyal_Symbol-2.svg" style="height:1em;width:1.2em;vertical-align:middle;display:inline-block"></th><th>البيان</th><th>العمولة <img src="https://www.sama.gov.sa/ar-sa/Currency/Documents/Saudi_Riyal_Symbol-2.svg" style="height:1em;width:1.2em;vertical-align:middle;display:inline-block"></th></tr></thead>
       <tbody id="orderRows"></tbody>
+      <tfoot><tr><td id="tot-ow" class="tot-val" style="text-align:center;border:1px solid var(--line);font-size:12px;padding:4px 2px"></td><td id="tot-op" class="tot-val" style="text-align:center;border:1px solid var(--line);font-size:12px;padding:4px 2px"></td><td style="text-align:center;border:1px solid var(--line);font-size:11px;color:var(--muted);padding:4px 2px">الإجمالي</td><td id="tot-oc" class="tot-val" style="text-align:center;border:1px solid var(--line);font-size:12px;padding:4px 2px"></td></tr></tfoot>
     </table>
 
     <!-- أوامر الشراء -->
     <div class="buy-title">أوامر الشراء</div>
     <table>
       <colgroup><col style="width:17%"><col style="width:17%"><col style="width:49%"><col style="width:17%"></colgroup>
-      <thead class="buy"><tr><th>الوزن</th><th>السعر</th><th>ملاحظات</th><th>العمولة</th></tr></thead>
+      <thead class="buy"><tr><th>الوزن</th><th>السعر <img src="https://www.sama.gov.sa/ar-sa/Currency/Documents/Saudi_Riyal_Symbol-2.svg" style="height:1em;width:1.2em;vertical-align:middle;display:inline-block"></th><th>ملاحظات</th><th>العمولة <img src="https://www.sama.gov.sa/ar-sa/Currency/Documents/Saudi_Riyal_Symbol-2.svg" style="height:1em;width:1.2em;vertical-align:middle;display:inline-block"></th></tr></thead>
       <tbody id="buyRows"></tbody>
+      <tfoot><tr><td id="tot-bw" class="tot-val" style="text-align:center;border:1px solid var(--line);font-size:12px;padding:4px 2px"></td><td id="tot-bp" class="tot-val" style="text-align:center;border:1px solid var(--line);font-size:12px;padding:4px 2px"></td><td style="text-align:center;border:1px solid var(--line);font-size:11px;color:var(--muted);padding:4px 2px">الإجمالي</td><td id="tot-bc" class="tot-val" style="text-align:center;border:1px solid var(--line);font-size:12px;padding:4px 2px"></td></tr></tfoot>
     </table>
 
     <!-- الهدف -->
@@ -249,6 +259,7 @@
 
   <div class="printwrap">
     <button class="btn-print" id="printBtn">🖨 طباعة</button>
+    <button class="btn-print" id="waBtn" onclick="shareWhatsApp()">💬 واتساب</button>
     <button class="btn-print" id="logoutBtn">خروج</button>
   </div>
   </div><!-- /#app -->
@@ -541,6 +552,58 @@ async function tryLogin(){
   // Poll every 5 seconds (same as gold monitor)
   setInterval(()=>refresh(true), 5000);
 })();
+
+
+/* ===== Auto Order Number ===== */
+function genOrderId(){
+  const d=new Date(); const dt=d.getFullYear()+(d.getMonth()+1).toString().padStart(2,'0')+d.getDate().toString().padStart(2,'0');
+  const key='swag_seq_'+dt; const seq=(parseInt(localStorage.getItem(key)||'0')+1);
+  localStorage.setItem(key,seq); return 'SW-'+dt+'-'+seq.toString().padStart(3,'0');
+}
+
+/* ===== Live Totals ===== */
+function fmtT(n){return n?n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):''}
+function updateTotals(){
+  let ow=0,op=0,oc=0,bw=0,bp=0,bc=0;
+  [...document.querySelectorAll('#orderRows tr')].forEach(r=>{
+    ow+=num(r.querySelector('.f-weight').value);
+    op+=num(r.querySelector('.f-price').value);
+    oc+=num(r.querySelector('.f-comm').value);
+  });
+  [...document.querySelectorAll('#buyRows tr')].forEach(r=>{
+    bw+=num(r.querySelector('.f-weight').value);
+    bp+=num(r.querySelector('.f-price').value);
+    bc+=num(r.querySelector('.f-comm').value);
+  });
+  const set=(id,v,sar)=>{const el=document.getElementById(id);if(el)el.innerHTML=v?(sar?"<img src=\"https://www.sama.gov.sa/ar-sa/Currency/Documents/Saudi_Riyal_Symbol-2.svg\" style=\"height:1em;width:1.2em;vertical-align:middle;display:inline-block\">"+' ':'')+fmtT(v):''};
+  set('tot-ow',ow,false);set('tot-op',op,true);set('tot-oc',oc,true);
+  set('tot-bw',bw,false);set('tot-bp',bp,true);set('tot-bc',bc,true);
+}
+document.querySelector('.sheet').addEventListener('input',updateTotals);
+updateTotals();
+
+/* auto-calc removed — عمولة is entered manually */
+
+/* ===== WhatsApp Share ===== */
+function shareWhatsApp(){
+  const data=collect();
+  if(!data.orders.length&&!data.buys.length){toast('لا توجد بيانات للمشاركة','err');return;}
+  const oid=genOrderId();
+  let msg='*طلب اوردر فرع السبائك*\n';
+  msg+='رقم الطلب: '+oid+'\n';
+  msg+='التاريخ: '+data.date+'\nالمعدن: '+data.metal+'\n\n';
+  if(data.orders.length){
+    msg+='*الطلب:*\n';
+    data.orders.forEach((o,i)=>{msg+=(i+1)+'. وزن: '+o.weight+' | سعر: '+o.price+(o.desc?' | '+o.desc:'')+'\n';});
+  }
+  if(data.buys.length){
+    msg+='\n*أوامر الشراء:*\n';
+    data.buys.forEach((b,i)=>{msg+=(i+1)+'. وزن: '+b.weight+' | سعر: '+b.price+(b.note?' | '+b.note:'')+'\n';});
+  }
+  if(data.target) msg+='\nالهدف: '+data.target;
+  msg+='\n\nمقدم الطلب: '+data.submitter;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
 
 </script>
 </body>

@@ -68,8 +68,8 @@
   .d-val{flex:1;min-width:0;border:none;background:transparent;font-family:inherit;font-weight:700;
          font-size:12.5px;color:var(--ink);text-align:center;cursor:pointer;padding:7px 2px;
          line-height:1.25;white-space:normal;word-break:break-word}
-  .d-hidden{position:absolute;left:50%;bottom:0;width:1px;height:1px;opacity:0;
-            pointer-events:none;border:0;padding:0;margin:0}
+  .d-hidden{position:absolute;inset:0;width:100%;height:100%;opacity:0;
+            cursor:pointer;border:0;padding:0;margin:0;-webkit-appearance:none}
 
   /* ===== Tables ===== */
   table{width:100%;border-collapse:collapse;table-layout:fixed}
@@ -248,14 +248,14 @@
       <div class="h-date">
         <div class="d-lab">التاريخ</div>
         <button type="button" class="d-val" id="dateBtn">—</button>
-        <input type="date" id="orderDate" class="d-hidden" tabindex="-1" aria-hidden="true">
+        <input type="date" id="orderDate" class="d-hidden">
       </div>
     </div>
 
     <!-- الطلب -->
     <table>
       <colgroup><col style="width:17%"><col style="width:17%"><col style="width:49%"><col style="width:17%"></colgroup>
-      <thead class="order"><tr><th>الوزن</th><th>السعر<br><span style="font-family:'Tajawal',system-ui;font-size:11px;font-weight:800;color:#8f7438;vertical-align:middle">ر.س</span></th><th>البيان</th><th>العمولة<br><span style="font-family:'Tajawal',system-ui;font-size:11px;font-weight:800;color:#8f7438;vertical-align:middle">ر.س</span></th></tr></thead>
+      <thead class="order"><tr><th>الوزن</th><th>السعر</th><th>البيان</th><th>العمولة</th></tr></thead>
       <tbody id="orderRows"></tbody>
     </table>
 
@@ -263,7 +263,7 @@
     <div class="buy-title">أوامر الشراء</div>
     <table>
       <colgroup><col style="width:17%"><col style="width:17%"><col style="width:49%"><col style="width:17%"></colgroup>
-      <thead class="buy"><tr><th>الوزن</th><th>السعر<br><span style="font-family:'Tajawal',system-ui;font-size:11px;font-weight:800;color:#8f7438;vertical-align:middle">ر.س</span></th><th>ملاحظات</th><th>العمولة<br><span style="font-family:'Tajawal',system-ui;font-size:11px;font-weight:800;color:#8f7438;vertical-align:middle">ر.س</span></th></tr></thead>
+      <thead class="buy"><tr><th>الوزن</th><th>السعر</th><th>ملاحظات</th><th>العمولة</th></tr></thead>
       <tbody id="buyRows"></tbody>
     </table>
 
@@ -296,7 +296,8 @@
 const CONFIG = { SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxnORtVDEzbQHNfcwFTp7UCGnTU-gEdYMRp8tytyqajNgb8pPflQuvZ5S1Jd8fM6THMlg/exec" };   /* <-- Apps Script /exec URL yaha */
 
 const $ = id => document.getElementById(id);
-$('orderDate').valueAsDate = new Date();
+(function(){const d=new Date(),p=n=>String(n).padStart(2,'0');
+  $('orderDate').value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());})();
 function renderDate(){const v=$('orderDate').value,b=$('dateBtn');
   if(!v){b.textContent='—';return;} const p=v.split('-'); b.textContent=(+p[2])+'/'+(+p[1])+'/'+p[0];}
 $('dateBtn').addEventListener('click',()=>{const i=$('orderDate');
